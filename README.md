@@ -4,3 +4,5 @@ Aquest repositori conté el codi per al funcionament d'un robot aspirador / esqu
 COMPONENTS UTLITZATS
 -Placa: Keystudio
 -Sensor de distància: 
+
+FUNCIONAMENT DEL CODI
