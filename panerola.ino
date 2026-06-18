@@ -1,63 +1,122 @@
-// --- PINS MOTORS (Canviats a pins PWM per controlar velocitat) ---
-const int Motorpin1 = 3;  // PWM
-const int Motorpin2 = 5;  // PWM
-const int Motorpin3 = 6;  // PWM
-const int Motorpin4 = 9;  // PWM
+// --- PINS MOTORS ---
+const int Motorpin1 = 3; const int Motorpin2 = 5;
+const int Motorpin3 = 6; const int Motorpin4 = 9;
+const int pinENA = 10;   const int pinENB = 11;
 
-int velocitatNormal = 255; // Velocitat màxima
-int velocitatLenta = 128;  // Aproximadament la meitat
+const int pinVentilador = A0;
+const int pinBuzzer = A4;
+const int pinPolsador = 2;
 
-// ... (la resta de pins es manté igual)
+// --- SENSORS ---
+const int P_trig_D = 12; const int P_echo_D = 7; // Echo al 7 para evitar errores
+const int P_trig_C = 4;  const int P_echo_C = 8;
+
+// --- LEDS ---
+const int ledVermell = A1; const int ledGroc = A2; const int ledVerd = A3;
+
+bool robotActiu = false;
+int ultimEstatPolsador = HIGH;
+
+void setup() {
+  pinMode(Motorpin1, OUTPUT); pinMode(Motorpin2, OUTPUT);
+  pinMode(Motorpin3, OUTPUT); pinMode(Motorpin4, OUTPUT);
+  pinMode(pinENA, OUTPUT); pinMode(pinENB, OUTPUT);
+  pinMode(pinVentilador, OUTPUT); pinMode(pinBuzzer, OUTPUT);
+  pinMode(ledVermell, OUTPUT); pinMode(ledGroc, OUTPUT); pinMode(ledVerd, OUTPUT);
+  pinMode(P_trig_D, OUTPUT); pinMode(P_trig_C, OUTPUT);
+  pinMode(P_echo_D, INPUT); pinMode(P_echo_C, INPUT);
+  pinMode(pinPolsador, INPUT_PULLUP);
+}
 
 void loop() {
-  // ... (lògica del polsador igual)
+  int estatPolsador = digitalRead(pinPolsador);
+
+  if (estatPolsador == LOW && ultimEstatPolsador == HIGH) {
+    delay(50);
+    robotActiu = !robotActiu;
+    if (robotActiu) ejecutarBaile();
+    else pararRobot();
+    delay(300);
+  }
+  ultimEstatPolsador = estatPolsador;
 
   if (robotActiu) {
-    long distDavant = llegirDistancia(P_trig_D, P_echo_D);
-    long distCul = llegirDistancia(P_trig_C, P_echo_C);
-    
-    int v = velocitatNormal;
+    digitalWrite(pinVentilador, HIGH);
+   
+    long dDavant = llegirDistancia(P_trig_D, P_echo_D);
+    long dCul = llegirDistancia(P_trig_C, P_echo_C);
+   
+    // Usamos la distancia más corta para los LEDs
+    long dMin = min(dDavant, dCul);
 
-    // Si detecta objecte a prop (entre 10 i 35 cm), reduïm velocitat
-    if (distDavant <= 35 && distDavant > 0) {
-      v = velocitatLenta;
+    // --- LÒGICA DE LEDS (ROJA < 5cm, GROC < 10cm, VERD resta) ---
+    digitalWrite(ledVermell, LOW);
+    digitalWrite(ledGroc, LOW);
+    digitalWrite(ledVerd, LOW);
+
+    if (dMin <= 5) {
+      digitalWrite(ledVermell, HIGH);
+    } else if (dMin <= 10) {
+      digitalWrite(ledGroc, HIGH);
+    } else {
+      digitalWrite(ledVerd, HIGH);
     }
 
-    // Lògica de moviment actualitzada amb velocitat 'v'
-    if(distCul > 0 && distCul <= 10) {
-      mover(v, 0, v, 0); delay(500); // Fuig cap endavant
+    // --- LÒGICA DE VELOCITAT Y MOVIMENT ---
+    int v = (dMin < 40) ? 125 : 255; // Mitad de velocidad si detecta algo a 40cm
+
+    if (dDavant < 15) {
+      mover(0, 1, 0, 1, v); delay(500); // Enrere
+      mover(1, 0, 0, 1, v); delay(400); // Gir
+    } else if (dCul < 10) {
+      mover(1, 0, 1, 0, v); delay(400); // Escapa endavant
+    } else {
+      mover(1, 0, 1, 0, v); // Endavant normal
     }
-    else if(distDavant > 0 && distDavant <= 10) {
-      mover(0, v, 0, v); delay(600); // Enrere
-      mover(v, 0, 0, v); delay(500); // Gir
-    }
-    else if(distDavant > 10 && distDavant <= 35) {
-      mover(v, 0, 0, v); // Gira lentament
-    }
-    else {
-      avanzar(velocitatNormal); // Camp lliure, velocitat total
-    }
-  } else {
-    pararRobot();
   }
-  delay(50);
 }
 
-// --- FUNCIONS MODIFICADES ---
-
-void mover(int p1, int p2, int p3, int p4) {
-  // Ara usem analogWrite per al control de velocitat
-  analogWrite(Motorpin1, p1);
-  analogWrite(Motorpin2, p2);
-  analogWrite(Motorpin3, p3);
-  analogWrite(Motorpin4, p4);
-}
-
-void avanzar(int v) {
-  mover(v, 0, v, 0);
+void mover(int p1, int p2, int p3, int p4, int vel) {
+  analogWrite(pinENA, vel);
+  analogWrite(pinENB, vel);
+  digitalWrite(Motorpin1, p1); digitalWrite(Motorpin2, p2);
+  digitalWrite(Motorpin3, p3); digitalWrite(Motorpin4, p4);
 }
 
 void pararRobot() {
-  mover(0, 0, 0, 0);
-  // ... (resta de llums igual)
+  mover(0, 0, 0, 0, 0);
+  digitalWrite(pinVentilador, LOW);
+  digitalWrite(ledVermell, LOW); digitalWrite(ledGroc, LOW); digitalWrite(ledVerd, LOW);
+  noTone(pinBuzzer);
+}
+
+void ejecutarBaile() {
+  // Notas de "La Cucaracha": Do-Do-Do-Fa-La...
+  int notas[] = {261, 261, 261, 349, 440, 0, 261, 261, 261, 349, 440};
+  int duracion[] = {150, 150, 150, 300, 300, 100, 150, 150, 150, 300, 300};
+
+  for(int i=0; i<11; i++) {
+    if(notas[i] != 0) {
+      tone(pinBuzzer, notas[i]);
+      // Movimiento rítmico
+      if(i % 2 == 0) mover(1, 0, 0, 1, 255);
+      else mover(0, 1, 1, 0, 255);
+    } else {
+      noTone(pinBuzzer);
+      mover(0, 0, 0, 0, 0);
+    }
+    delay(duracion[i]);
+    noTone(pinBuzzer);
+    delay(50);
+  }
+  mover(0, 0, 0, 0, 0);
+}
+
+long llegirDistancia(int trig, int echo) {
+  digitalWrite(trig, LOW); delayMicroseconds(2);
+  digitalWrite(trig, HIGH); delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+  long duracio = pulseIn(echo, HIGH, 25000);
+  if (duracio == 0) return 999;
+  return duracio / 58.2;
 }
