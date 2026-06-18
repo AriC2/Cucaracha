@@ -9,13 +9,13 @@ const int Motorpin3 = 4;
 const int Motorpin4 = 5;
 
 // --- PINS LEDS ---
-int led = 13;    // Rojo (Parado / Error)
-int lAzul = 8;   // Azul (Girando)
-int LVerde = 7;  // Verde (Avanzando)
+int led = 13;    // Vermell (Maniobra enrere)
+int lAzul = 8;   // Blau (Girant)
+int LVerde = 7;  // Verd (Avançant)
 
 void setup() {
   Serial.begin(9600);
-  
+ 
   pinMode(Motorpin1, OUTPUT);
   pinMode(Motorpin2, OUTPUT);
   pinMode(Motorpin3, OUTPUT);
@@ -28,7 +28,7 @@ void setup() {
   pinMode(lAzul, OUTPUT);
   pinMode(LVerde, OUTPUT);
 
-  // --- 1. BAILE DE LA CUCARACHA (Independiente del sensor) ---
+  // --- 1. BALL DE LA CUCARACHA ---
   ejecutarBaile();
 }
 
@@ -42,46 +42,32 @@ void loop() {
   delayMicroseconds(10);
   digitalWrite(P_trig, LOW);
 
-  // pulseIn con TIMEOUT de 30ms para que no se bloquee si no hay sensor
-  duracion = pulseIn(P_echo, HIGH, 30000); 
+  duracion = pulseIn(P_echo, HIGH, 30000);
   distancia = duracion / 58.2;
 
-  // DEBUG: Para ver en el PC qué está pasando
+  // DEBUG
   Serial.print("Distancia: ");
   Serial.println(distancia);
 
-  // --- 2. LÓGICA DE DETECCIÓN ---
-  // Si distancia es 0 (no hay sensor) o mayor a 35, avanza
+  // --- 2. LÒGICA DE DETECCIÓ MILLORADA ---
+ 
   if(distancia > 35 || distancia == 0) {
+    // CAMINA
     avanzar();
-  } 
-  // Si detecta algo entre 10 y 35 cm, gira
-  else if(distancia >= 10 && distancia <= 35) {
-    esquivar();
-  } 
-  // Si está muy cerca, para
-  else {
-    detener();
   }
-  
-  delay(50); 
+  else if(distancia >= 10 && distancia <= 35) {
+    // GIRA (Obstacle a mitja distància)
+    esquivar();
+  }
+  else {
+    // TIRA ENRERE, GIRA I CAMINA (Obstacle molt a prop)
+    maniobraEvasiva();
+  }
+ 
+  delay(50);
 }
 
-// --- FUNCIONES DE MOVIMIENTO ---
-
-void ejecutarBaile() {
-  // Adelante, Atrás, Derecha, Izquierda, Derecha, Izquierda, Atrás, Adelante
-  mover(1,0,1,0); delay(400); // Adelante
-  mover(0,1,0,1); delay(400); // Atrás
-  mover(1,0,0,1); delay(300); // Derecha
-  mover(0,1,1,0); delay(300); // Izquierda
-  mover(1,0,0,1); delay(300); // Derecha
-  mover(0,1,1,0); delay(300); // Izquierda
-  mover(0,1,0,1); delay(400); // Atrás
-  mover(1,0,1,0); delay(400); // Adelante
-  detener();
-  delay(1000); 
-}
+// --- FUNCIONS DE MOVIMENT ---
 
 void mover(int p1, int p2, int p3, int p4) {
   digitalWrite(Motorpin1, p1);
@@ -97,10 +83,33 @@ void avanzar() {
 
 void esquivar() {
   digitalWrite(LVerde, LOW); digitalWrite(lAzul, HIGH); digitalWrite(led, LOW);
-  mover(1, 0, 0, 1); // Giro sobre su eje
+  mover(1, 0, 0, 1); // Giro sobre el seu eix
 }
 
-void detener() {
+void maniobraEvasiva() {
+  // Tira enrere
   digitalWrite(LVerde, LOW); digitalWrite(lAzul, LOW); digitalWrite(led, HIGH);
-  mover(0, 0, 0, 0);
+  mover(0, 1, 0, 1);
+  delay(600); // Temps reculant
+ 
+  // Gira
+  digitalWrite(led, LOW); digitalWrite(lAzul, HIGH);
+  mover(1, 0, 0, 1);
+  delay(500); // Temps girant
+ 
+  // Torna a avançar
+  avanzar();
+}
+
+void ejecutarBaile() {
+  mover(1,0,1,0); delay(400); // Endavant
+  mover(0,1,0,1); delay(400); // Enrere
+  mover(1,0,0,1); delay(300); // Dreta
+  mover(0,1,1,0); delay(300); // Esquerra
+  mover(1,0,0,1); delay(300); // Dreta
+  mover(0,1,1,0); delay(300); // Esquerra
+  mover(0,1,0,1); delay(400); // Enrere
+  mover(1,0,1,0); delay(400); // Endavant
+  mover(0,0,0,0);
+  delay(1000);
 }
