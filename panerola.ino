@@ -1,17 +1,17 @@
-// --- DEFINICIÓN DE PINS ---
+// --- PINS DEL SENSOR ---
 #define P_echo 11
 #define P_trig 12
 
+// --- PINS MOTORES ---
 const int Motorpin1 = 2;
 const int Motorpin2 = 3;
 const int Motorpin3 = 4;
 const int Motorpin4 = 5;
 
-int led = 13;
-int lAzul = 8;
-int LVerde = 7;
-
-long duracion, distancia;
+// --- PINS LEDS ---
+int led = 13;    // Rojo (Parado / Error)
+int lAzul = 8;   // Azul (Girando)
+int LVerde = 7;  // Verde (Avanzando)
 
 void setup() {
   Serial.begin(9600);
@@ -28,76 +28,79 @@ void setup() {
   pinMode(lAzul, OUTPUT);
   pinMode(LVerde, OUTPUT);
 
-  // --- BAILE DE LA CUCARACHA (Independiente) ---
-  baileCucaracha();
+  // --- 1. BAILE DE LA CUCARACHA (Independiente del sensor) ---
+  ejecutarBaile();
 }
 
 void loop() {
-  // 1. LECTURA DEL SENSOR
+  long duracion, distancia;
+
+  // LANZAR PULSO
   digitalWrite(P_trig, LOW);
   delayMicroseconds(2);
   digitalWrite(P_trig, HIGH);
   delayMicroseconds(10);
   digitalWrite(P_trig, LOW);
 
-  duracion = pulseIn(P_echo, HIGH);
+  // pulseIn con TIMEOUT de 30ms para que no se bloquee si no hay sensor
+  duracion = pulseIn(P_echo, HIGH, 30000); 
   distancia = duracion / 58.2;
 
-  // Imprimir en monitor serie para debug
+  // DEBUG: Para ver en el PC qué está pasando
   Serial.print("Distancia: ");
   Serial.println(distancia);
 
-  // 2. DECISIONES SEGÚN DISTANCIA
-  // Si no detecta nada (0) o está muy lejos, asumimos camino libre
-  if(distancia > 35 || distancia == 0){
+  // --- 2. LÓGICA DE DETECCIÓN ---
+  // Si distancia es 0 (no hay sensor) o mayor a 35, avanza
+  if(distancia > 35 || distancia == 0) {
     avanzar();
   } 
-  else if(distancia >= 10 && distancia <= 35){
-    girar();
+  // Si detecta algo entre 10 y 35 cm, gira
+  else if(distancia >= 10 && distancia <= 35) {
+    esquivar();
   } 
+  // Si está muy cerca, para
   else {
     detener();
   }
-
-  delay(50); // Pequeña pausa para estabilizar lecturas
+  
+  delay(50); 
 }
 
 // --- FUNCIONES DE MOVIMIENTO ---
 
-void baileCucaracha() {
-  for(int i=0; i<3; i++) { // Repite el paso 3 veces
-    digitalWrite(Motorpin1, HIGH); digitalWrite(Motorpin2, LOW);
-    digitalWrite(Motorpin3, LOW);  digitalWrite(Motorpin4, HIGH);
-    delay(200);
-    digitalWrite(Motorpin1, LOW);  digitalWrite(Motorpin2, HIGH);
-    digitalWrite(Motorpin3, HIGH); digitalWrite(Motorpin4, LOW);
-    delay(200);
-  }
+void ejecutarBaile() {
+  // Adelante, Atrás, Derecha, Izquierda, Derecha, Izquierda, Atrás, Adelante
+  mover(1,0,1,0); delay(400); // Adelante
+  mover(0,1,0,1); delay(400); // Atrás
+  mover(1,0,0,1); delay(300); // Derecha
+  mover(0,1,1,0); delay(300); // Izquierda
+  mover(1,0,0,1); delay(300); // Derecha
+  mover(0,1,1,0); delay(300); // Izquierda
+  mover(0,1,0,1); delay(400); // Atrás
+  mover(1,0,1,0); delay(400); // Adelante
   detener();
-  delay(1000); // Pausa antes de empezar a detectar
+  delay(1000); 
+}
+
+void mover(int p1, int p2, int p3, int p4) {
+  digitalWrite(Motorpin1, p1);
+  digitalWrite(Motorpin2, p2);
+  digitalWrite(Motorpin3, p3);
+  digitalWrite(Motorpin4, p4);
 }
 
 void avanzar() {
   digitalWrite(LVerde, HIGH); digitalWrite(lAzul, LOW); digitalWrite(led, LOW);
-  digitalWrite(Motorpin1, HIGH);
-  digitalWrite(Motorpin2, LOW);
-  digitalWrite(Motorpin3, HIGH);
-  digitalWrite(Motorpin4, LOW);
+  mover(1, 0, 1, 0);
 }
 
-void girar() {
+void esquivar() {
   digitalWrite(LVerde, LOW); digitalWrite(lAzul, HIGH); digitalWrite(led, LOW);
-  // Giro sobre su propio eje
-  digitalWrite(Motorpin1, LOW);
-  digitalWrite(Motorpin2, HIGH);
-  digitalWrite(Motorpin3, HIGH);
-  digitalWrite(Motorpin4, LOW);
+  mover(1, 0, 0, 1); // Giro sobre su eje
 }
 
 void detener() {
   digitalWrite(LVerde, LOW); digitalWrite(lAzul, LOW); digitalWrite(led, HIGH);
-  digitalWrite(Motorpin1, LOW);
-  digitalWrite(Motorpin2, LOW);
-  digitalWrite(Motorpin3, LOW);
-  digitalWrite(Motorpin4, LOW);
+  mover(0, 0, 0, 0);
 }
